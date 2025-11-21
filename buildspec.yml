@@ -12,31 +12,32 @@ phases:
 
   pre_build:
     commands:
-      - echo "AppName:$AppName"
-      - cd "$AppName" || { echo "ERROR:$AppName folder not found"; exit 1; }
-  
-      # Find latest dated folder
-      - LATEST_DATE=$(ls -d */ | sort -r | head -1 | sed 's#/##')
-      - echo "Latest date folder = $LATEST_DATE"
-      - cd "$LATEST_DATE" || { echo "ERROR:$LATEST_DATE folder not found"; exit 1; }
-  
-      # Find first package folder containing app.py
-      - PACKAGE_FOLDER=$(find . -maxdepth 2 -type f -name "app.py" | head -1 | xargs dirname)
-      - if [ -z "$PACKAGE_FOLDER" ]; then echo "ERROR:app.py not found in $LATEST_DATE"; exit 1; fi
-      - echo "Package folder containing app.py:$PACKAGE_FOLDER"
-  
-      # Full path for Docker build
-      - FULL_PATH="$AppName/$LATEST_DATE/$PACKAGE_FOLDER"
-      - echo "FULL_PATH for Docker build:$FULL_PATH"
-      - echo $FULL_PATH > /tmp/app_path.txt
-  
-      # Detect framework
-      - if grep -qi "streamlit" "$FULL_PATH/requirements.txt"; then APP_TYPE="streamlit"; \
-        elif grep -qi "fastapi" "$FULL_PATH/requirements.txt"; then APP_TYPE="fastapi"; \
-        else APP_TYPE="flask"; fi
-      - echo "Detected Framework:$APP_TYPE"
-      - echo $APP_TYPE > /tmp/app_type.txt
+      - echo "AppName = $AppName"
+      
+      # Go to the app folder directly (no date folder)
+      - cd "$AppName" || { echo "ERROR:Folder $AppName not found"; exit 1; }
 
+      # Since app.py is directly here, set FULL_PATH = $AppName
+      - FULL_PATH="$AppName"
+      - echo "Using FULL_PATH = $FULL_PATH"
+      - echo "$FULL_PATH" > /tmp/app_path.txt
+
+      # Detect APP_TYPE
+      - |
+        if grep -qi "streamlit" "requirements.txt"; then
+            APP_TYPE="streamlit"
+        elif grep -qi "fastapi" "requirements.txt"; then
+            APP_TYPE="fastapi"
+        else
+            APP_TYPE="flask"
+        fi
+
+      - echo "Detected Framework = $APP_TYPE"
+      - echo "$APP_TYPE" > /tmp/app_type.txt
+
+      # Login to ECR
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
+        | docker login --username AWS --password-stdin $ECR_URL
 
   build:
     commands:
