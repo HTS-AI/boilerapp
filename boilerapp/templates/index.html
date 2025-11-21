@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Predict Steam Flow</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('{{ url_for('static', filename='images/boiler_img.jpg') }}');
+            background-repeat: no-repeat;
+            background-size:  100%;
+            background-position: center top -270px;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #ffffff;
+            text-align: center;
+            font-size: 80px;
+            margin-top: 150px;
+        }
+
+        ul {
+            list-style-type: none;
+            margin: 0;
+            padding: 0;
+            text-align: center;
+        }
+
+        li {
+            display: inline-block;
+            margin: 10px;
+        }
+
+        a {
+            display: block;
+            padding: 15px 30px;
+            font-size: 20px;
+            font-weight: bold; /* Added font-weight property to make the text bold */
+            background-color: #4CAF50;
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background-color 0.3s ease;
+        }
+
+        a:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+<h1>Predict Steam Flow</h1>
+<ul>
+    <li><a href="/minutewise">Minute wise</a></li>
+    <li><a href="/hourwise">Hour wise</a></li>
+    <li><a href="/prescriptive">Prescriptive Analysis</a></li>
+    <li><a href="https://chart-studio.plotly.com/create/?fid=jsreddy0079:29&fid=jsreddy0079:28#/">
+        Feature Importance
+    </a></li>
+    <li><a href="/browse_dropdown_m">Select file for minute wise analysis</a></li> 
+    <li><a href="/browse_dropdown_h">Select file for hour wise analysis</a></li>
+</ul>
+</body>
+</html>

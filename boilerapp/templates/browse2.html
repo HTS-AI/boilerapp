@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head><title>Hour-wise Prediction</title></head>
+<body>
+    <h2>Select Hour-wise CSV File</h2>
+    <form method="POST" action="/predict_h_dropdown">
+        <select name="file_name">
+            {% for file in files %}
+                <option value="{{ file }}">{{ file }}</option>
+            {% endfor %}
+        </select>
+        <input type="submit" value="Predict">
+    </form>
+</body>
+</html>

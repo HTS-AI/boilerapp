@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Minutewise Analysis</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f2f2f2;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #333333;
+            text-align: center;
+        }
+
+        form {
+            text-align: center;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        input[type="text"] {
+            width: 300px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        input[type="submit"] {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: #ffffff;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+
+        #result {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffffff;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Minute wise SF Ratio Predictive Analysis</h1>
+    <form action="/minutewise" method="POST">
+        <label>
+            EFF_Blowdown_Loss:
+            <input type="text" name="EFF_Blowdown_Loss" placeholder="EFF_Blowdown_Loss" required="required" />
+        </label>
+        <label>
+            EFF_Enthalpy_Loss:
+            <input type="text" name="EFF_Enthalpy_Loss" placeholder="EFF_Enthalpy_Loss" required="required" />
+        </label>
+        <label>
+            EFF_FD_Fan_Out:
+            <input type="text" name="EFF_FD_Fan_Out" placeholder="EFF_FD_Fan_Out" required="required" />
+        </label>
+        <label>
+            EFF_FeedWater_Temp:
+            <input type="text" name="EFF_FeedWater_Temp" placeholder="EFF_FeedWater_Temp" required="required" />
+        </label>
+        <label>
+            EFF_Fuel_Flow:
+            <input type="text" name="EFF_Fuel_Flow" placeholder="EFF_Fuel_Flow" required="required" />
+        </label>
+        <label>
+            EFF_Fuel_Flow_Total:
+            <input type="text" name="EFF_Fuel_Flow_Total" placeholder="EFF_Fuel_Flow_Total" required="required" />
+        </label>
+        <label>
+            EFF_Stack_Loss:
+            <input type="text" name="EFF_Stack_Loss" placeholder="EFF_Stack_Loss" required="required" />
+        </label>
+        <label>
+            EFF_Stack_Temp:
+            <input type="text" name="EFF_Stack_Temp" placeholder="EFF_Stack_Temp" required="required" />
+        </label>
+        <label>
+            EFF_Steam_Flow:
+            <input type="text" name="EFF_Steam_Flow" placeholder="EFF_Steam_Flow" required="required" />
+        </label>
+        <input type="submit" value="Submit">
+    </form>
+    <div id="result">
+        {% if prediction %}
+            <h2>Predicted SF Ratio (Minute wise)</h2>
+            <p>{{ prediction }}</p>
+        {% endif %}
+    </div>
+</body>
+</html>
