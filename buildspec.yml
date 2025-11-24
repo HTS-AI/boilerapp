@@ -5,37 +5,39 @@ phases:
     runtime-versions:
       python: 3.9
     commands:
-      - echo "Installing tools..."
-      - pip install boto3
-      - apt-get update -y
-      - apt-get install -y jq
+      - echo "Installing utilities..."
+      - pip install boto3 >/dev/null 2>&1
+      - apt-get update -y >/dev/null
+      - apt-get install -y jq >/dev/null
 
   pre_build:
     commands:
-      - echo "AppName = $AppName"
-      
-      # Go to the app folder directly (no date folder)
-      - cd "$AppName" || { echo "ERROR:Folder $AppName not found"; exit 1; }
+      - echo "=== Detecting Application Folder ==="
 
-      # Since app.py is directly here, set FULL_PATH = $AppName
-      - FULL_PATH="$AppName"
-      - echo "Using FULL_PATH = $FULL_PATH"
-      - echo "$FULL_PATH" > /tmp/app_path.txt
+      # Detect folder containing app.py dynamically
+      - APP_DIR=$(dirname "$(find . -name app.py | head -n 1)")
+      - if [ "$APP_DIR" = "." ]; then APP_DIR="."; fi
+      - cd "$APP_DIR" || { echo "ERROR: Unable to enter app directory"; exit 1; }
 
-      # Detect APP_TYPE
+      - echo "APP_DIR detected as: $APP_DIR"
+      - echo "$APP_DIR" > /tmp/app_path.txt
+
+      # Detect Framework using requirements.txt
+      - echo "=== Detecting Framework Type ==="
       - |
-        if grep -qi "streamlit" "requirements.txt"; then
+        if grep -qi "streamlit" requirements.txt; then
             APP_TYPE="streamlit"
-        elif grep -qi "fastapi" "requirements.txt"; then
+        elif grep -qi "fastapi" requirements.txt; then
             APP_TYPE="fastapi"
         else
             APP_TYPE="flask"
         fi
 
-      - echo "Detected Framework = $APP_TYPE"
+      - echo "Framework Detected: $APP_TYPE"
       - echo "$APP_TYPE" > /tmp/app_type.txt
 
-      # Login to ECR
+      # ECR login
+      - echo "Logging in to Amazon ECR..."
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
         | docker login --username AWS --password-stdin $ECR_URL
 
@@ -44,8 +46,17 @@ phases:
       - APP_PATH=$(cat /tmp/app_path.txt)
       - TYPE=$(cat /tmp/app_type.txt)
 
-      - echo "Starting docker build for $TYPE app"
-      - docker build --build-arg APP_PATH=$APP_PATH --build-arg APP_TYPE=$TYPE -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
+      - echo "=== Starting Docker Build ==="
+      - echo "App path: $APP_PATH"
+      - echo "App type: $TYPE"
+
+      # Build inside the app directory
+      - docker build \
+          --build-arg APP_PATH=$APP_PATH \
+          --build-arg APP_TYPE=$TYPE \
+          -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
+
+      - echo "=== Pushing Image to ECR ==="
       - docker push $ECR_URL:$CODEBUILD_BUILD_NUMBER
 
 artifacts:
