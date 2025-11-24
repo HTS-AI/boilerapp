@@ -53,12 +53,7 @@ phases:
       - echo "=== Starting Docker Build ==="
       - echo "App path:$APP_PATH"
       - echo "App type:$TYPE"
-
-      - docker build \
-          --build-arg APP_PATH=$APP_PATH \
-          --build-arg APP_TYPE=$TYPE \
-          -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
-
+      - docker build --build-arg APP_PATH=$APP_PATH --build-arg APP_TYPE=$TYPE -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
       - echo "=== Pushing Image to ECR ==="
       - docker push $ECR_URL:$CODEBUILD_BUILD_NUMBER
 
