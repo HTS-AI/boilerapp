@@ -21,12 +21,12 @@ phases:
       - APP_DIR=$(dirname "$(find . -type f -name 'app.py' | head -n 1)")
 
       - if [ -z "$APP_DIR" ]; then
-            echo "ERROR: app.py not found. Cannot continue.";
+            echo "ERROR:app.py not found. Cannot continue.";
             exit 1;
         fi
 
       - [ "$APP_DIR" = "." ] && APP_DIR="$(pwd)"
-      - echo "App directory detected: $APP_DIR"
+      - echo "App directory detected:$APP_DIR"
       - echo "$APP_DIR" > /tmp/app_path.txt
 
       # Detect Framework (Flask / Streamlit / FastAPI)
@@ -40,13 +40,13 @@ phases:
             APP_TYPE="flask"
         fi
 
-      - echo "Framework detected: $APP_TYPE"
+      - echo "Framework detected:$APP_TYPE"
       - echo "$APP_TYPE" > /tmp/app_type.txt
 
       # Login to ECR
       - echo "===== Logging in to Amazon ECR ====="
       - if [ -z "$ECR_URL" ]; then
-            echo "ERROR: ECR_URL environment variable missing";
+            echo "ERROR:ECR_URL environment variable missing";
             exit 1;
         fi
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
@@ -58,8 +58,8 @@ phases:
       - APP_TYPE=$(cat /tmp/app_type.txt)
 
       - echo "===== Building Docker Image ====="
-      - echo "App Path: $APP_PATH"
-      - echo "App Type: $APP_TYPE"
+      - echo "App Path:$APP_PATH"
+      - echo "App Type:$APP_TYPE"
 
       # Always run build from repo root, but build context set properly
       - docker build \
