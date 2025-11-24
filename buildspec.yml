@@ -1,75 +1,66 @@
 version: 0.2
 
-env:
-  shell: bash
-
 phases:
   install:
     runtime-versions:
       python: 3.9
     commands:
-      - echo "Installing required utilities..."
-      - pip install boto3 >/dev/null 2>&1 || true
+      - echo "Installing utilities..."
+      - pip install boto3 >/dev/null 2>&1
       - apt-get update -y >/dev/null
       - apt-get install -y jq >/dev/null
 
   pre_build:
     commands:
-      - echo "===== Detecting Application Directory ====="
+      - echo "=== Detecting Application Folder ==="
 
-      # Find folder containing app.py dynamically
-      - APP_DIR=$(dirname "$(find . -type f -name 'app.py' | head -n 1)")
-
-      - if [ -z "$APP_DIR" ]; then
-            echo "ERROR:app.py not found. Cannot continue.";
-            exit 1;
+      # Detect folder containing app.py dynamically
+      - APP_DIR=$(dirname "$(find . -name app.py | head -n 1)")
+      - |
+        if [ "$APP_DIR" = "." ]; then 
+          APP_DIR="."; 
         fi
+      - cd "$APP_DIR" || { echo "ERROR:Unable to enter app directory"; exit 1; }
 
-      - [ "$APP_DIR" = "." ] && APP_DIR="$(pwd)"
-      - echo "App directory detected:$APP_DIR"
+      - echo "APP_DIR detected as:$APP_DIR"
       - echo "$APP_DIR" > /tmp/app_path.txt
 
-      # Detect Framework (Flask / Streamlit / FastAPI)
-      - echo "===== Detecting Framework ====="
+      # Detect Framework using requirements.txt
+      - echo "=== Detecting Framework Type ==="
       - |
-        if grep -qi "streamlit" "$APP_DIR/requirements.txt"; then
-            APP_TYPE="streamlit"
-        elif grep -qi "fastapi" "$APP_DIR/requirements.txt"; then
-            APP_TYPE="fastapi"
+        if grep -qi "streamlit" requirements.txt; then
+          APP_TYPE="streamlit"
+        elif grep -qi "fastapi" requirements.txt; then
+          APP_TYPE="fastapi"
         else
-            APP_TYPE="flask"
+          APP_TYPE="flask"
         fi
 
-      - echo "Framework detected:$APP_TYPE"
+      - echo "Framework Detected:$APP_TYPE"
       - echo "$APP_TYPE" > /tmp/app_type.txt
 
-      # Login to ECR
-      - echo "===== Logging in to Amazon ECR ====="
-      - if [ -z "$ECR_URL" ]; then
-            echo "ERROR:ECR_URL environment variable missing";
-            exit 1;
-        fi
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
-           | docker login --username AWS --password-stdin $ECR_URL
+      # ECR login
+      - echo "Logging in to Amazon ECR..."
+      - |
+        aws ecr get-login-password --region $AWS_DEFAULT_REGION \
+          | docker login --username AWS --password-stdin $ECR_URL
 
   build:
     commands:
       - APP_PATH=$(cat /tmp/app_path.txt)
-      - APP_TYPE=$(cat /tmp/app_type.txt)
+      - TYPE=$(cat /tmp/app_type.txt)
 
-      - echo "===== Building Docker Image ====="
-      - echo "App Path:$APP_PATH"
-      - echo "App Type:$APP_TYPE"
+      - echo "=== Starting Docker Build ==="
+      - echo "App path:$APP_PATH"
+      - echo "App type:$TYPE"
 
-      # Always run build from repo root, but build context set properly
       - docker build \
-          --build-arg APP_PATH="$APP_PATH" \
-          --build-arg APP_TYPE="$APP_TYPE" \
-          -t "$ECR_URL:$CODEBUILD_BUILD_NUMBER" \
-          "$APP_PATH"
+          --build-arg APP_PATH=$APP_PATH \
+          --build-arg APP_TYPE=$TYPE \
+          -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
 
-      - echo "===== Pushing Docker Image to ECR ====="
-      - docker push "$ECR_URL:$CODEBUILD_BUILD_NUMBER"
+      - echo "=== Pushing Image to ECR ==="
+      - docker push $ECR_URL:$CODEBUILD_BUILD_NUMBER
 
 artifacts:
   files:
