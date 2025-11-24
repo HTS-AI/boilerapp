@@ -20,7 +20,6 @@ phases:
         if [ "$APP_DIR" = "." ]; then 
           APP_DIR="."; 
         fi
-      - cd "$APP_DIR" || { echo "ERROR:Unable to enter app directory"; exit 1; }
 
       - echo "APP_DIR detected as:$APP_DIR"
       - echo "$APP_DIR" > /tmp/app_path.txt
