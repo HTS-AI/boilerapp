@@ -17,9 +17,9 @@ phases:
       # Detect folder containing app.py dynamically
       - APP_DIR=$(dirname "$(find . -name app.py | head -n 1)")
       - if [ "$APP_DIR" = "." ]; then APP_DIR="."; fi
-      - cd "$APP_DIR" || { echo "ERROR: Unable to enter app directory"; exit 1; }
+      - cd "$APP_DIR" || { echo "ERROR:Unable to enter app directory"; exit 1; }
 
-      - echo "APP_DIR detected as: $APP_DIR"
+      - echo "APP_DIR detected as:$APP_DIR"
       - echo "$APP_DIR" > /tmp/app_path.txt
 
       # Detect Framework using requirements.txt
@@ -33,7 +33,7 @@ phases:
             APP_TYPE="flask"
         fi
 
-      - echo "Framework Detected: $APP_TYPE"
+      - echo "Framework Detected:$APP_TYPE"
       - echo "$APP_TYPE" > /tmp/app_type.txt
 
       # ECR login
@@ -47,8 +47,8 @@ phases:
       - TYPE=$(cat /tmp/app_type.txt)
 
       - echo "=== Starting Docker Build ==="
-      - echo "App path: $APP_PATH"
-      - echo "App type: $TYPE"
+      - echo "App path:$APP_PATH"
+      - echo "App type:$TYPE"
 
       # Build inside the app directory
       - docker build \
