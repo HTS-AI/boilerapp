@@ -44,7 +44,55 @@ phases:
         aws ecr get-login-password --region $AWS_DEFAULT_REGION \
           | docker login --username AWS --password-stdin $ECR_URL
 
-  build:
+  post_build:
+    commands:
+      - echo "Configuring kubectl..."
+      - aws eks update-kubeconfig --name $CLUSTER_NAME --region $CLUSTER_REGION
+  
+      - echo "Deploying to EKS..."
+      - |
+        cat <<EOF > k8s.yaml
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: $APP_NAME
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: $APP_NAME
+          template:
+            metadata:
+              labels:
+                app: $APP_NAME
+          spec:
+              containers:
+                - name: $APP_NAME
+                  image: $ECR_URL:$CODEBUILD_BUILD_NUMBER
+                  ports:
+                    - containerPort: $DEFAULT_PORT
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: $APP_NAME
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+        spec:
+          type: LoadBalancer
+          ports:
+            - port: 80
+              targetPort: $DEFAULT_PORT
+          selector:
+            app: $APP_NAME
+        EOF
+  
+      - kubectl apply -f k8s.yaml
+  
+      - echo "✅ Deployment triggered!"
+      - kubectl get svc $APP_NAME
+
+build:
     commands:
       - APP_PATH=$(cat /tmp/app_path.txt)
       - TYPE=$(cat /tmp/app_type.txt)
