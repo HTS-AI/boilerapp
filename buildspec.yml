@@ -1,108 +1,112 @@
 version: 0.2
 
+env:
+  variables:
+    DEFAULT_PORT: "5000" # override via CodeBuild env if needed
+    CLUSTER_REGION: "us-east-1"
+
 phases:
   install:
     runtime-versions:
       python: 3.9
     commands:
-      - echo "Installing utilities..."
+      - echo "Installing dependencies..."
       - pip install boto3 >/dev/null 2>&1
       - apt-get update -y >/dev/null
       - apt-get install -y jq >/dev/null
 
   pre_build:
     commands:
-      - echo "=== Detecting Application Folder ==="
-
-      # Detect folder containing app.py dynamically
+      - echo "=== Detecting application path ==="
       - APP_DIR=$(dirname "$(find . -name app.py | head -n 1)")
       - |
         if [ "$APP_DIR" = "." ]; then 
           APP_DIR="."; 
         fi
-
-      - echo "APP_DIR detected as:$APP_DIR"
+      - echo "APP_DIR=$APP_DIR"
       - echo "$APP_DIR" > /tmp/app_path.txt
 
-      # Detect Framework using requirements.txt
-      - echo "=== Detecting Framework Type ==="
+      - echo "=== Detecting Framework ==="
       - |
         if grep -qi "streamlit" requirements.txt; then
           APP_TYPE="streamlit"
+          DEFAULT_PORT=8501
         elif grep -qi "fastapi" requirements.txt; then
           APP_TYPE="fastapi"
+          DEFAULT_PORT=8000
         else
           APP_TYPE="flask"
+          DEFAULT_PORT=5000
         fi
-
-      - echo "Framework Detected:$APP_TYPE"
+      - echo "APP_TYPE=$APP_TYPE"
       - echo "$APP_TYPE" > /tmp/app_type.txt
+      - echo "DEFAULT_PORT=$DEFAULT_PORT"
 
-      # ECR login
       - echo "Logging in to Amazon ECR..."
-      - |
-        aws ecr get-login-password --region $AWS_DEFAULT_REGION \
-          | docker login --username AWS --password-stdin $ECR_URL
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION \
+        | docker login --username AWS --password-stdin $ECR_URL
+
+  build:
+    commands:
+      - APP_PATH=$(cat /tmp/app_path.txt)
+      - APP_TYPE=$(cat /tmp/app_type.txt)
+
+      - echo "=== Building Docker Image ==="
+      - docker build --build-arg APP_PATH=$APP_PATH --build-arg APP_TYPE=$APP_TYPE -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
+
+      - echo "=== Pushing Docker Image ==="
+      - docker push $ECR_URL:$CODEBUILD_BUILD_NUMBER
 
   post_build:
     commands:
       - echo "Configuring kubectl..."
       - aws eks update-kubeconfig --name $CLUSTER_NAME --region $CLUSTER_REGION
-  
-      - echo "Deploying to EKS..."
+
+      - echo "Generating Kubernetes manifest..."
       - |
         cat <<EOF > k8s.yaml
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: $APP_NAME
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: $APP_NAME
-          template:
-            metadata:
-              labels:
-                app: $APP_NAME
-          spec:
-              containers:
-                - name: $APP_NAME
-                  image: $ECR_URL:$CODEBUILD_BUILD_NUMBER
-                  ports:
-                    - containerPort: $DEFAULT_PORT
-        ---
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: $APP_NAME
-          annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
-        spec:
-          type: LoadBalancer
-          ports:
-            - port: 80
-              targetPort: $DEFAULT_PORT
-          selector:
-            app: $APP_NAME
-        EOF
-  
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: $APP_NAME
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: $APP_NAME
+  template:
+    metadata:
+      labels:
+        app: $APP_NAME
+    spec:
+      containers:
+      - name: $APP_NAME
+        image: $ECR_URL:$CODEBUILD_BUILD_NUMBER
+        ports:
+        - containerPort: $DEFAULT_PORT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: $APP_NAME
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  selector:
+    app: $APP_NAME
+  ports:
+  - port: 80
+    targetPort: $DEFAULT_PORT
+EOF
+
+      - echo "Deploying to EKS..."
       - kubectl apply -f k8s.yaml
-  
-      - echo "✅ Deployment triggered!"
+
+      - echo "Waiting for Load Balancer..."
+      - sleep 10
       - kubectl get svc $APP_NAME
-
-build:
-    commands:
-      - APP_PATH=$(cat /tmp/app_path.txt)
-      - TYPE=$(cat /tmp/app_type.txt)
-
-      - echo "=== Starting Docker Build ==="
-      - echo "App path:$APP_PATH"
-      - echo "App type:$TYPE"
-      - docker build --build-arg APP_PATH=$APP_PATH --build-arg APP_TYPE=$TYPE -t $ECR_URL:$CODEBUILD_BUILD_NUMBER .
-      - echo "=== Pushing Image to ECR ==="
-      - docker push $ECR_URL:$CODEBUILD_BUILD_NUMBER
 
 artifacts:
   files:
