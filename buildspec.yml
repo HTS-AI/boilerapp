@@ -7,48 +7,27 @@ env:
 phases:
   pre_build:
     commands:
-      - echo "Logging in to Amazon ECR..."
+      - echo Logging into Amazon ECR...
       - aws --version
-      - ACCOUNT_ID=$(aws sts get-caller-identity --query 'Account' --output text)
-      - REPO_URI="$ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$APP_NAME"
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REPO_URI
+      - docker --version
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
+        docker login --username AWS --password-stdin $ECR_REPO_URI
 
   build:
     commands:
-      - echo "Building Docker image..."
-      - docker build -t $REPO_URI:$IMAGE_TAG .
-      - echo "Pushing Docker image to ECR..."
-      - docker push $REPO_URI:$IMAGE_TAG
+      - echo Building Docker image...
+      - docker build -t $APP_NAME .
+      - docker tag $APP_NAME:latest $ECR_REPO_URI:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo "Updating kubeconfig..."
-      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $EKS_CLUSTER_NAME
-      - echo "Deploying to EKS..."
+      - echo Pushing image to ECR...
+      - docker push $ECR_REPO_URI:$IMAGE_TAG
+      - echo Updating Kubeconfig...
+      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
+      - echo Deploying to EKS...
       - |
         cat <<EOF | kubectl apply -f -
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: $APP_NAME
-          labels:
-            app: $APP_NAME
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: $APP_NAME
-          template:
-            metadata:
-              labels:
-                app: $APP_NAME
-            spec:
-              containers:
-              - name: $APP_NAME
-                image: $REPO_URI:$IMAGE_TAG
-                ports:
-                - containerPort: 8000
-        ---
         apiVersion: v1
         kind: Service
         metadata:
@@ -63,6 +42,26 @@ phases:
             targetPort: 8000
           selector:
             app: $APP_NAME
+        ---
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: $APP_NAME
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: $APP_NAME
+          template:
+            metadata:
+              labels:
+                app: $APP_NAME
+            spec:
+              containers:
+              - name: $APP_NAME
+                image: $ECR_REPO_URI:$IMAGE_TAG
+                ports:
+                - containerPort: 8000
         EOF
 
 artifacts:
