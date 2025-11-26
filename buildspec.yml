@@ -1,53 +1,33 @@
 version: 0.2
 
-phases:
-  install:
-    commands:
-      - echo Installing kubectl...
-      - curl -LO "https://amazon-eks.s3.amazonaws.com/1.30.0/2024-04-19/bin/linux/amd64/kubectl"
-      - chmod +x kubectl
-      - mv kubectl /usr/local/bin/
+env:
+  variables:
+    IMAGE_TAG: latest
 
+phases:
   pre_build:
     commands:
-      - echo Logging in to Amazon ECR...
+      - echo Logging into Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
         docker login --username AWS --password-stdin $ECR_REPO_URI
-      - echo APP_PATH: $APP_PATH
-      - echo APP_TYPE: $APP_TYPE
+      - echo Building variables...
+      - REPO_IMAGE="$ECR_REPO_URI:$IMAGE_TAG"
 
   build:
     commands:
-      - echo Building Docker Image...
-      - docker build -t $APP_NAME \
-          --build-arg APP_PATH=$APP_PATH \
-          --build-arg APP_TYPE=$APP_TYPE .
-      - docker tag $APP_NAME:latest $ECR_REPO_URI:$IMAGE_TAG
+      - echo Building Docker image...
+      - docker build -t $APP_NAME .
+      - docker tag $APP_NAME:latest $REPO_IMAGE
 
   post_build:
     commands:
-      - echo Pushing Image...
-      - docker push $ECR_REPO_URI:$IMAGE_TAG
+      - echo Pushing image to ECR...
+      - docker push $REPO_IMAGE
       - echo Updating kubeconfig...
-      - aws eks update-kubeconfig --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION
+      - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
       - echo Deploying to EKS...
       - |
-        cat <<EOF | kubectl apply -f -
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: $APP_NAME
-          annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: alb
-            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-        spec:
-          type: LoadBalancer
-          selector:
-            app: $APP_NAME
-          ports:
-          - port: 80
-            targetPort: 8000
-        ---
+        kubectl apply -f - <<EOF
         apiVersion: apps/v1
         kind: Deployment
         metadata:
@@ -64,8 +44,26 @@ phases:
             spec:
               containers:
               - name: $APP_NAME
-                image: $ECR_REPO_URI:$IMAGE_TAG
+                image: $REPO_IMAGE
                 ports:
                 - containerPort: 8000
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: $APP_NAME
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: alb
+            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+        spec:
+          type: LoadBalancer
+          ports:
+          - port: 80
+            targetPort: 8000
+          selector:
+            app: $APP_NAME
         EOF
-      - echo "Deployment completed 🚀"
+
+artifacts:
+  files:
+    - '**/*'
