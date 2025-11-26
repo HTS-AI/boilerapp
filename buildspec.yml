@@ -10,7 +10,6 @@ phases:
       - echo Logging into Amazon ECR...
       - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
         docker login --username AWS --password-stdin $ECR_REPO_URI
-      - echo Building variables...
       - REPO_IMAGE="$ECR_REPO_URI:$IMAGE_TAG"
 
   build:
@@ -28,42 +27,40 @@ phases:
       - echo Deploying to EKS...
       - |
         kubectl apply -f - <<EOF
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: $APP_NAME
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: $APP_NAME
-          template:
-            metadata:
-              labels:
-                app: $APP_NAME
-            spec:
-              containers:
-              - name: $APP_NAME
-                image: $REPO_IMAGE
-                ports:
-                - containerPort: 8000
-        ---
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: $APP_NAME
-          annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: alb
-            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-        spec:
-          type: LoadBalancer
-          ports:
-          - port: 80
-            targetPort: 8000
-          selector:
-            app: $APP_NAME
-        EOF
-
-artifacts:
-  files:
-    - '**/*'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APP_NAME}
+  labels:
+    app: ${APP_NAME}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${APP_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${APP_NAME}
+    spec:
+      containers:
+      - name: ${APP_NAME}
+        image: ${REPO_IMAGE}
+        ports:
+        - containerPort: 8000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${APP_NAME}
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: alb
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+    targetPort: 8000
+  selector:
+    app: ${APP_NAME}
+EOF
