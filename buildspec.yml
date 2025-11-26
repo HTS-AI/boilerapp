@@ -7,42 +7,31 @@ env:
 phases:
   pre_build:
     commands:
-      - echo Logging into Amazon ECR...
-      - aws --version
-      - docker --version
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
-        docker login --username AWS --password-stdin $ECR_REPO_URI
+      - echo "Logging into Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
+      - echo "APP Path = $APP_PATH"
+      - echo "APP Type = $APP_TYPE"
 
   build:
     commands:
-      - echo Building Docker image...
-      - docker build -t $APP_NAME .
+      - echo "Building Docker image..."
+      - docker build -t $APP_NAME \
+          --build-arg APP_PATH=$APP_PATH \
+          --build-arg APP_TYPE=$APP_TYPE \
+          .
       - docker tag $APP_NAME:latest $ECR_REPO_URI:$IMAGE_TAG
 
   post_build:
     commands:
-      - echo Pushing image to ECR...
+      - echo "Pushing image to ECR..."
       - docker push $ECR_REPO_URI:$IMAGE_TAG
-      - echo Updating Kubeconfig...
+
+      - echo "Updating kubeconfig..."
       - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
-      - echo Deploying to EKS...
+
+      - echo "Deploying to EKS..."
       - |
         cat <<EOF | kubectl apply -f -
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: $APP_NAME
-          annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: alb
-            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-        spec:
-          type: LoadBalancer
-          ports:
-          - port: 80
-            targetPort: 8000
-          selector:
-            app: $APP_NAME
-        ---
         apiVersion: apps/v1
         kind: Deployment
         metadata:
@@ -62,6 +51,23 @@ phases:
                 image: $ECR_REPO_URI:$IMAGE_TAG
                 ports:
                 - containerPort: 8000
+
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: $APP_NAME
+          annotations:
+            service.beta.kubernetes.io/aws-load-balancer-type: alb
+            service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+            service.beta.kubernetes.io/aws-load-balancer-target-group-attributes: preserve_client_ip.enabled=true
+        spec:
+          type: LoadBalancer
+          ports:
+          - port: 80
+            targetPort: 8000
+          selector:
+            app: $APP_NAME
         EOF
 
 artifacts:
