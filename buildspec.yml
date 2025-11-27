@@ -58,13 +58,26 @@ metadata:
 spec:
   type: LoadBalancer
   ports:
-  - port: 80
-    targetPort: 5000
+    - port: 80
+      targetPort: 5000
   selector:
     app: ${APP_NAME}
 EOF
       - echo Applying manifest...
       - kubectl apply -f deployment.yaml
+      - echo Waiting for LoadBalancer to get hostname...
+      - |
+        for i in {1..30}; do
+          HOSTNAME=$(kubectl get svc $APP_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ -n "$HOSTNAME" ]; then
+            echo "ALB Hostname: $HOSTNAME"
+            echo "You can now access your app at http://$HOSTNAME"
+            break
+          else
+            echo "Waiting for LoadBalancer..."
+            sleep 10
+          fi
+        done
       - echo Deployment complete ✅
 
 artifacts:
