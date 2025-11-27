@@ -8,7 +8,8 @@ phases:
   pre_build:
     commands:
       - echo Logging into Amazon ECR...
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION |
+        docker login --username AWS --password-stdin $ECR_REPO_URI
       - REPO_IMAGE="$ECR_REPO_URI:$IMAGE_TAG"
 
   build:
@@ -23,9 +24,8 @@ phases:
       - docker push $REPO_IMAGE
       - echo Updating kubeconfig...
       - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
-      - echo Creating deployment manifest...
-      - |
-        cat <<EOF > deployment.yaml
+      - echo Deploying to EKS...
+      - kubectl apply -f - <<EOF
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -63,10 +63,3 @@ spec:
   selector:
     app: ${APP_NAME}
 EOF
-      - echo Applying manifest...
-      - kubectl apply -f deployment.yaml
-      - echo Deployment complete ✅
-
-artifacts:
-  files:
-    - '**/*'
