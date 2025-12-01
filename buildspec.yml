@@ -3,6 +3,7 @@ version: 0.2
 env:
   variables:
     IMAGE_TAG: latest
+    DEPLOYMENT_NAMESPACE: default  # change if using another namespace
 
 phases:
   pre_build:
@@ -21,6 +22,7 @@ phases:
     commands:
       - echo Pushing image to ECR...
       - docker push $REPO_IMAGE
+
       - echo Updating kubeconfig...
       - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
 
@@ -65,12 +67,25 @@ spec:
 EOF
 
       - echo Applying manifest...
-      - kubectl apply -f deployment.yaml
+      - kubectl apply -f deployment.yaml -n $DEPLOYMENT_NAMESPACE
 
-      - echo Waiting for LoadBalancer to get hostname...
+      - echo Waiting for pods to be ready...
       - |
         for i in {1..30}; do
-          HOSTNAME=$(kubectl get svc $APP_NAME -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          READY=$(kubectl get pods -n $DEPLOYMENT_NAMESPACE -l app=$APP_NAME -o jsonpath='{.items[*].status.containerStatuses[*].ready}')
+          if [[ "$READY" == "true" ]]; then
+            echo "Pods are ready ✅"
+            break
+          else
+            echo "Waiting for pods..."
+            sleep 10
+          fi
+        done
+
+      - echo Waiting for LoadBalancer hostname...
+      - |
+        for i in {1..60}; do
+          HOSTNAME=$(kubectl get svc $APP_NAME -n $DEPLOYMENT_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           if [ -n "$HOSTNAME" ]; then
             echo "ALB Hostname: $HOSTNAME"
             echo "You can now access your app at http://$HOSTNAME"
@@ -82,6 +97,8 @@ EOF
         done
 
       - echo Deployment complete ✅
+      - echo "Final resources status:"
+      - kubectl get deployments,pods,svc -n $DEPLOYMENT_NAMESPACE
 
 artifacts:
   files:
