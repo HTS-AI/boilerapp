@@ -22,16 +22,21 @@ phases:
 
   post_build:
     commands:
-      - echo Pushing image to ECR...
+      - echo Pushing Docker image to ECR...
       - docker push $REPO_IMAGE
 
-      - echo Updating kubeconfig...
+      - echo Updating kubeconfig for EKS cluster...
       - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
 
-      - echo Refreshing EKS token...
-      - aws eks get-token --region $AWS_DEFAULT_REGION --cluster-name $CLUSTER_NAME > /dev/null
+      - echo Verifying EKS access...
+      - |
+        if ! aws eks describe-cluster --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION; then
+          echo "ERROR: CodeBuild role cannot access the cluster. Attach proper IAM permissions."
+          exit 1
+        fi
+        echo "EKS access verified ✅"
 
-      - echo Creating deployment manifest...
+      - echo Creating Kubernetes deployment manifest...
       - |
         cat <<EOF > deployment.yaml
         apiVersion: apps/v1
@@ -72,7 +77,7 @@ phases:
             app: ${APP_NAME}
         EOF
 
-      - echo Applying manifest...
+      - echo Applying manifest to EKS...
       - kubectl apply -f deployment.yaml -n $DEPLOYMENT_NAMESPACE --validate=false
 
       - echo Waiting for pods to be ready...
@@ -94,7 +99,7 @@ phases:
           HOSTNAME=$(kubectl get svc $APP_NAME -n $DEPLOYMENT_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           if [ -n "$HOSTNAME" ]; then
             echo "ALB Hostname: $HOSTNAME"
-            echo "You can now access your app at http://$HOSTNAME"
+            echo "Your app is live at http://$HOSTNAME"
             break
           else
             echo "Waiting for LoadBalancer..."
@@ -103,7 +108,7 @@ phases:
         done
 
       - echo Deployment complete ✅
-      - echo "Final resources status:"
+      - echo "Final Kubernetes resources:"
       - kubectl get deployments,pods,svc -n $DEPLOYMENT_NAMESPACE
 
 artifacts:
