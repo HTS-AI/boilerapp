@@ -29,7 +29,7 @@ phases:
           APP_TYPE="unknown"
           PORT=8000
         fi
-      - echo "App type detected: $APP_TYPE, Port: $PORT"
+      - echo "App type detected:$APP_TYPE, Port:$PORT"
       - echo "Logging into Amazon ECR..."
       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
       - REPO_IMAGE="$ECR_REPO_URI:$IMAGE_TAG"
