@@ -3,7 +3,9 @@ version: 0.2
 env:
   variables:
     IMAGE_TAG: latest
-    DEPLOYMENT_NAMESPACE: default  # change if using another namespace
+    DEPLOYMENT_NAMESPACE: default
+    AWS_DEFAULT_REGION: ap-south-1
+    CLUSTER_NAME: hts-usecase-cluster
 
 phases:
   pre_build:
@@ -25,6 +27,9 @@ phases:
 
       - echo Updating kubeconfig...
       - aws eks update-kubeconfig --region $AWS_DEFAULT_REGION --name $CLUSTER_NAME
+
+      - echo Refreshing EKS token...
+      - aws eks get-token --region $AWS_DEFAULT_REGION --cluster-name $CLUSTER_NAME > /dev/null
 
       - echo Creating deployment manifest...
       - |
