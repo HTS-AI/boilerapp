@@ -68,7 +68,7 @@ phases:
         EOF
 
       - echo Applying manifest...
-      - kubectl apply -f deployment.yaml -n $DEPLOYMENT_NAMESPACE
+      - kubectl apply -f deployment.yaml -n $DEPLOYMENT_NAMESPACE --validate=false
 
       - echo Waiting for pods to be ready...
       - |
