@@ -3,9 +3,9 @@ version: 0.2
 env:
   variables:
     IMAGE_TAG: latest
-    DEPLOYMENT_NAMESPACE: default
-    AWS_DEFAULT_REGION: ap-south-1
-    CLUSTER_NAME: hts-usecase-cluster
+    DEPLOYMENT_NAMESPACE: default   # Change if using a different namespace
+    CONTAINER_PORT: 8000
+    SERVICE_PORT: 80
 
 phases:
   pre_build:
@@ -22,7 +22,7 @@ phases:
 
   post_build:
     commands:
-      - echo Pushing Docker image to ECR...
+      - echo Pushing image to ECR...
       - docker push $REPO_IMAGE
 
       - echo Updating kubeconfig for EKS cluster...
@@ -30,52 +30,51 @@ phases:
 
       - echo Verifying EKS access...
       - |
-        if ! aws eks describe-cluster --name $CLUSTER_NAME --region $AWS_DEFAULT_REGION; then
+        if ! kubectl get nodes; then
           echo "ERROR: CodeBuild role cannot access the cluster. Attach proper IAM permissions."
           exit 1
         fi
         echo "EKS access verified ✅"
 
       - echo Creating Kubernetes deployment manifest...
-      - |
-        cat <<EOF > deployment.yaml
-        apiVersion: apps/v1
-        kind: Deployment
-        metadata:
-          name: ${APP_NAME}
-          labels:
-            app: ${APP_NAME}
-        spec:
-          replicas: 1
-          selector:
-            matchLabels:
-              app: ${APP_NAME}
-          template:
-            metadata:
-              labels:
-                app: ${APP_NAME}
-            spec:
-              containers:
-              - name: ${APP_NAME}
-                image: ${REPO_IMAGE}
-                ports:
-                - containerPort: 8000
-        ---
-        apiVersion: v1
-        kind: Service
-        metadata:
-          name: ${APP_NAME}
-          annotations:
-            service.beta.kubernetes.io/aws-load-balancer-type: "alb"
-            service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
-        spec:
-          type: LoadBalancer
-          ports:
-            - port: 80
-              targetPort: 8000
-          selector:
-            app: ${APP_NAME}
-        EOF
+      - cat <<EOF > deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${APP_NAME}
+  labels:
+    app: ${APP_NAME}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${APP_NAME}
+  template:
+    metadata:
+      labels:
+        app: ${APP_NAME}
+    spec:
+      containers:
+      - name: ${APP_NAME}
+        image: ${REPO_IMAGE}
+        ports:
+        - containerPort: ${CONTAINER_PORT}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${APP_NAME}
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "alb"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internet-facing"
+spec:
+  type: LoadBalancer
+  ports:
+    - port: ${SERVICE_PORT}
+      targetPort: ${CONTAINER_PORT}
+  selector:
+    app: ${APP_NAME}
+EOF
 
       - echo Applying manifest to EKS...
       - kubectl apply -f deployment.yaml -n $DEPLOYMENT_NAMESPACE --validate=false
@@ -99,7 +98,7 @@ phases:
           HOSTNAME=$(kubectl get svc $APP_NAME -n $DEPLOYMENT_NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           if [ -n "$HOSTNAME" ]; then
             echo "ALB Hostname: $HOSTNAME"
-            echo "Your app is live at http://$HOSTNAME"
+            echo "You can now access your app at http://$HOSTNAME"
             break
           else
             echo "Waiting for LoadBalancer..."
@@ -108,7 +107,7 @@ phases:
         done
 
       - echo Deployment complete ✅
-      - echo "Final Kubernetes resources:"
+      - echo "Final resource status:"
       - kubectl get deployments,pods,svc -n $DEPLOYMENT_NAMESPACE
 
 artifacts:
