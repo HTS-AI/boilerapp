@@ -2,7 +2,7 @@ version: 0.2
 
 env:
   variables:
-    IMAGE_TAG: latest
+    IMAGE_TAG: build-$(date +%s)
     REGION: ap-south-1
     EKS_CLUSTER: hts-usecase-cluster
     NAMESPACE: boilerapp
