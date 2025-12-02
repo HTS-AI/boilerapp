@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: boilerapp-deployment
-  namespace: default
+  namespace: boilerapp
   labels:
     app: boilerapp
 spec:
