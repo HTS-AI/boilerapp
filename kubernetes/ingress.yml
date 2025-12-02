@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: boilerapp-ingress
+  namespace: boilerapp
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:242880561312:certificate/4fb3265c-3ec2-4972-a660-1e57e18c9c2c
+spec:
+  rules:
+    - host: boilerapp.knowerai.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: boilerapp-service
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - boilerapp.knowerai.com
+      secretName: boilerapp-tls
