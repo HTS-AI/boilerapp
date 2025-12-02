@@ -15,9 +15,12 @@ env:
 phases:
   pre_build:
     commands:
+      - set -e
       - echo "Logging in to ECR..."
       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
-      - REPO_IMAGE="$ECR_REPO_URI:$IMAGE_TAG"
+
+      - echo "Setting REPO_IMAGE..."
+      - export REPO_IMAGE="$ECR_REPO_URI:$IMAGE_TAG"
 
       - echo "Updating kubeconfig..."
       - aws eks update-kubeconfig --region $REGION --name $EKS_CLUSTER --kubeconfig kubeconfig.yaml
@@ -31,13 +34,15 @@ phases:
 
   build:
     commands:
-      - echo "Building Docker image..."
-      - docker build -t $REPO_IMAGE .
+      - set -e
+      - echo "Building Docker image $REPO_IMAGE..."
+      - docker build --no-cache -t $REPO_IMAGE .
       - echo "Pushing Docker image..."
       - docker push $REPO_IMAGE
 
   post_build:
     commands:
+      - set -e
       - echo "Creating Kubernetes Deployment YAML..."
       - |
         cat <<EOF > deployment.yaml
@@ -100,7 +105,7 @@ phases:
         done
 
       - echo "Deployment completed successfully!"
-      - echo "Application URL:http://$HOSTNAME"
+      - echo "Application URL: http://$HOSTNAME"
 
       - echo "Uploading URL to S3..."
       - echo "http://$HOSTNAME" > app_url.txt
