@@ -2,7 +2,7 @@ FROM public.ecr.aws/docker/library/python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements file first for caching
+# Copy only requirements first
 COPY boilerapp/requirements.txt .
 
 RUN pip install --no-cache-dir -r requirements.txt
