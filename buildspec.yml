@@ -10,6 +10,7 @@ env:
     CONTAINER_NAME: boilerapp
     PORT: 8000
     ECR_REPO_URI: 242880561312.dkr.ecr.ap-south-1.amazonaws.com/hts-ai/boilerapp
+    S3_BUCKET: hts-ai-usecase-links
 
 phases:
   pre_build:
@@ -66,7 +67,7 @@ phases:
       - echo "Applying Deployment..."
       - kubectl apply -f deployment.yaml
 
-      - echo "Creating Service YAML..."
+      - echo "Creating LoadBalancer Service YAML..."
       - |
         cat <<EOF > service.yaml
         apiVersion: v1
@@ -75,7 +76,7 @@ phases:
           name: $DEPLOYMENT_NAME-service
           namespace: $NAMESPACE
         spec:
-          type: NodePort
+          type: LoadBalancer
           selector:
             app: $DEPLOYMENT_NAME
           ports:
@@ -87,4 +88,20 @@ phases:
       - echo "Applying Service..."
       - kubectl apply -f service.yaml
 
+      - echo "Waiting for LoadBalancer hostname..."
+      - |
+        while true; do
+          HOSTNAME=$(kubectl get svc $DEPLOYMENT_NAME-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          if [ ! -z "$HOSTNAME" ]; then
+            break
+          fi
+          echo "Waiting for hostname..."
+          sleep 10
+        done
+
       - echo "Deployment completed successfully!"
+      - echo "Application URL: http://$HOSTNAME"
+
+      - echo "Uploading URL to S3..."
+      - echo "http://$HOSTNAME" > app_url.txt
+      - aws s3 cp app_url.txt s3://$S3_BUCKET/boilerapp/app_url.txt
