@@ -7,9 +7,17 @@ metadata:
     kubernetes.io/ingress.class: alb
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:242880561312:certificate/4fb3265c-3ec2-4972-a660-1e57e18c9c2c
+    
+    # Redirect HTTP → HTTPS
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
+    
+    # SSL Certificate
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:242880561312:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+    # Health check
+    alb.ingress.kubernetes.io/healthcheck-path: /
+    alb.ingress.kubernetes.io/healthcheck-port: traffic-port
 spec:
   rules:
     - host: boilerapp.knowerai.com
@@ -22,7 +30,3 @@ spec:
                 name: boilerapp-service
                 port:
                   number: 80
-  tls:
-    - hosts:
-        - boilerapp.knowerai.com
-      secretName: boilerapp-tls
