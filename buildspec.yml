@@ -90,7 +90,7 @@ phases:
           name: $DEPLOYMENT_NAME-service
           namespace: $NAMESPACE
         spec:
-          type: LoadBalancer
+          type: ClusterIP
           selector:
             app: $DEPLOYMENT_NAME
           ports:
@@ -140,7 +140,7 @@ phases:
       - echo "Waiting for LoadBalancer hostname..."
       - |
         while true; do
-          HOSTNAME=$(kubectl get svc $DEPLOYMENT_NAME-service -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          HOSTNAME=$(kubectl get ingress $DEPLOYMENT_NAME-ingress -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
           if [ ! -z "$HOSTNAME" ]; then
             break
           fi
