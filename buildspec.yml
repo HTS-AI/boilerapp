@@ -166,8 +166,13 @@ phases:
       - echo "https://$DOMAIN_NAME" > app_url.txt
       - aws s3 cp app_url.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/app_url.txt
       
-      - echo "Uploading full build log to S3..."
-      - aws s3 cp build_log.log s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_full.log
+      - echo "Uploading build log to S3..."
+      - if [ -f build_log.log ]; then
+          aws s3 cp build_log.log s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_full.log;
+        else
+          echo "Log file missing!";
+        fi
+
 
 
 
