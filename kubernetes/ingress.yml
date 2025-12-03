@@ -9,6 +9,7 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80}, {"HTTPS":443}]'
     alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:242880561312:certificate/4fb3265c-3ec2-4972-a660-1e57e18c9c2c
+    alb.ingress.kubernetes.io/ssl-redirect: "443"
 spec:
   rules:
     - host: boilerapp.knowerai.com
