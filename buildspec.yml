@@ -164,7 +164,7 @@ phases:
       - echo "https://$DOMAIN_NAME" > app_url.txt
       - aws s3 cp app_url.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/app_url.txt
       
-      - echo "Saving logs to S3..."
+      - echo "Uploading logs to S3..."
       - |
         LOG_GROUP="/aws/codebuild/$CODEBUILD_BUILD_PROJECT"
         LOG_STREAM="$CODEBUILD_LOG_STREAM_NAME"
@@ -174,9 +174,11 @@ phases:
           --log-group-name "$LOG_GROUP" \
           --log-stream-name "$LOG_STREAM" \
           --limit 10000 \
-          > build_logs.json || echo "Could not fetch CloudWatch logs"
+          --output json \
+        | jq -r '.events[].message' > build_logs.txt || echo "Could not fetch CloudWatch logs"
 
         echo "Uploading logs to S3..."
-        aws s3 cp build_logs.json s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_logs.json || true
+        aws s3 cp build_logs.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_logs.txt || true
+
 
 
