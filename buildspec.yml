@@ -158,15 +158,12 @@ phases:
         done
 
       - echo "Deployment completed successfully!"
-      - echo "Application URL:https://$HOSTNAME"
+      - echo "Application URL:https://$DOMAIN_NAME"
 
       - echo "Uploading URL to S3..."
       - echo "https://$DOMAIN_NAME" > app_url.txt
       - aws s3 cp app_url.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/app_url.txt
-            - echo "Uploading URL to S3..."
-      - echo "https://$DOMAIN_NAME" > app_url.txt
-      - aws s3 cp app_url.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/app_url.txt
-
+      
       - echo "Saving logs to S3..."
       - |
         LOG_GROUP="/aws/codebuild/$CODEBUILD_BUILD_PROJECT"
