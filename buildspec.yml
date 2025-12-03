@@ -137,20 +137,29 @@ phases:
       - echo "Applying Ingress..."
       - kubectl apply -f ingress.yaml
 
-      - echo "Waiting for LoadBalancer hostname..."
+      - echo "Waiting for LoadBalancer hostname (up to 5 minutes)..."
       - |
+        TIMEOUT=300   # 5 minutes
+        INTERVAL=10
+        ELAPSED=0
         while true; do
-          HOSTNAME=$(kubectl get ingress $DEPLOYMENT_NAME-ingress -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+          HOSTNAME=$(kubectl get ingress $DEPLOYMENT_NAME-ingress -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}' 2>/dev/null || echo "")
           if [ ! -z "$HOSTNAME" ]; then
+            echo "ALB hostname found:$HOSTNAME"
             break
           fi
+          if [ $ELAPSED -ge $TIMEOUT ]; then
+            echo "Timed out waiting for ALB hostname!"
+            exit 1
+          fi
           echo "Waiting for hostname..."
-          sleep 10
+          sleep $INTERVAL
+          ELAPSED=$((ELAPSED+INTERVAL))
         done
 
       - echo "Deployment completed successfully!"
-      - echo "Application URL:http://$HOSTNAME"
+      - echo "Application URL:https://$HOSTNAME"
 
       - echo "Uploading URL to S3..."
-      - echo "http://$HOSTNAME" > app_url.txt
-      - aws s3 cp app_url.txt s3://$S3_BUCKET/boilerapp/app_url.txt
+      - echo "https://$HOSTNAME" > app_url.txt
+      - aws s3 cp app_url.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/app_url.txt
