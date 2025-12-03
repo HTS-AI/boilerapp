@@ -18,6 +18,7 @@ phases:
   pre_build:
     commands:
       - set -e
+      - exec > >(tee -a build_full.log) 2>&1
       - echo "Logging in to ECR..."
       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
       - echo "Setting REPO_IMAGE..."
@@ -158,27 +159,16 @@ phases:
         done
 
       - echo "Deployment completed successfully!"
+      - echo "Actual host:$HOSTNAME"
       - echo "Application URL:https://$DOMAIN_NAME"
 
       - echo "Uploading URL to S3..."
       - echo "https://$DOMAIN_NAME" > app_url.txt
       - aws s3 cp app_url.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/app_url.txt
       
-      - echo "Uploading logs to S3..."
-      - |
-        LOG_GROUP="/aws/codebuild/$CODEBUILD_BUILD_PROJECT"
-        LOG_STREAM="$CODEBUILD_LOG_STREAM_NAME"
+      - echo "Uploading full build log to S3..."
+      - aws s3 cp build_log.log s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_full.log
 
-        echo "Fetching CloudWatch logs..."
-        aws logs get-log-events \
-          --log-group-name "$LOG_GROUP" \
-          --log-stream-name "$LOG_STREAM" \
-          --limit 10000 \
-          --output json \
-        | jq -r '.events[].message' > build_logs.txt || echo "Could not fetch CloudWatch logs"
-
-        echo "Uploading logs to S3..."
-        aws s3 cp build_logs.txt s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_logs.txt || true
 
 
 
