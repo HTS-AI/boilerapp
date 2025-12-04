@@ -18,7 +18,7 @@ phases:
   pre_build:
     commands:
       - set -e
-      - exec > >(tee -a build_full.log) 2>&1
+      - exec > >(tee -a build_log.log) 2>&1
       - echo "Logging in to ECR..."
       - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR_REPO_URI
       - echo "Setting REPO_IMAGE..."
@@ -168,7 +168,7 @@ phases:
       
       - echo "Uploading build log to S3..."
       - if [ -f build_log.log ]; then
-          aws s3 cp build_log.log s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_full.log;
+          aws s3 cp build_log.log s3://$S3_BUCKET/$DEPLOYMENT_NAME/build_log.log;
         else
           echo "Log file missing!";
         fi
